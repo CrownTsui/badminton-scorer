@@ -756,11 +756,6 @@
     // 振动反馈
     if (navigator.vibrate) navigator.vibrate(15);
 
-    // 冷却视觉
-    const panel = team === 'A' ? panelA : panelB;
-    panel.classList.add('cooling');
-    setTimeout(() => panel.classList.remove('cooling'), 300);
-
     // 确保当前局存在
     const idx = state.currentGame - 1;
     while (state.games.length <= idx) {
@@ -1024,8 +1019,23 @@
     });
   });
 
-  panelA.addEventListener('dblclick', (e) => { e.preventDefault(); score('A'); });
-  panelB.addEventListener('dblclick', (e) => { e.preventDefault(); score('B'); });
+  // 自定义双击检测（dblclick 在移动端不可靠）
+  const doubleTap = (() => {
+    let lastTap = { A: 0, B: 0 };
+    const THRESHOLD = 350; // 两次点击间隔小于350ms视为双击
+    return (team) => {
+      const now = Date.now();
+      if (now - lastTap[team] < THRESHOLD) {
+        lastTap[team] = 0;
+        score(team);
+      } else {
+        lastTap[team] = now;
+      }
+    };
+  })();
+
+  panelA.addEventListener('click', (e) => { e.preventDefault(); doubleTap('A'); });
+  panelB.addEventListener('click', (e) => { e.preventDefault(); doubleTap('B'); });
   btnUndo.addEventListener('click', undo);
   btnPause.addEventListener('click', togglePause);
   btnResume.addEventListener('click', resumeFromPause);
