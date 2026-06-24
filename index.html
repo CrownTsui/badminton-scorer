@@ -67,6 +67,35 @@
     margin-top: 2px;
   }
 
+  /* 赛制选择器 */
+  .format-selector {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .format-btn {
+    padding: 4px 12px;
+    border-radius: 14px;
+    border: 1.5px solid var(--color-divider);
+    background: var(--color-surface);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+    transition: all 0.15s;
+    min-height: 32px;
+  }
+  .format-btn.active {
+    background: var(--color-a);
+    color: #FFF;
+    border-color: var(--color-a);
+  }
+  .format-btn:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
   /* ===== 警告横幅 ===== */
   .warning-banner {
     display: none;
@@ -88,16 +117,13 @@
     min-height: 0;
   }
 
-  /* 竖屏：上下排列；横屏：左右排列 */
-  @media (orientation: portrait) {
-    .score-area { flex-direction: column; }
-    .score-panel { flex-direction: row; align-items: center; justify-content: space-between; padding: 12px 16px; }
-    .score-number { font-size: 4rem; }
-  }
+  /* 始终上下排列 */
+  .score-area { flex-direction: column; }
+  .score-panel { flex-direction: row; align-items: center; justify-content: center; padding: 12px 16px; position: relative; }
+  .score-number { font-size: 4rem; text-align: center; }
+  /* 横屏时缩小字体以适应 */
   @media (orientation: landscape) {
-    .score-area { flex-direction: row; }
-    .score-panel { flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
-    .score-number { font-size: 3.5rem; }
+    .score-number { font-size: 3rem; }
   }
 
   .score-panel {
@@ -145,6 +171,8 @@
     align-items: center;
     gap: 2px;
     min-width: 60px;
+    position: absolute;
+    left: 16px;
   }
   .team-name {
     font-weight: 700;
@@ -172,16 +200,7 @@
   }
   .score-number.pulse { transform: scale(1.25); }
 
-  /* 得分按钮 */
-  .score-btn-label {
-    font-size: 1.2rem;
-    font-weight: 700;
-    padding: 8px 20px;
-    border-radius: 12px;
-    color: #FFF;
-  }
-  .team-a .score-btn-label { background: var(--color-a); }
-  .team-b .score-btn-label { background: var(--color-b); }
+  /* 得分按钮（整个面板可点击） */
 
   /* ===== 控制栏 ===== */
   .controls {
@@ -384,6 +403,11 @@
   <header class="header">
     <h1>🏸 羽毛球记分</h1>
     <div class="status-bar" id="statusBar" aria-live="polite">准备开始</div>
+    <div class="format-selector" id="formatSelector">
+      <button class="format-btn active" data-format="21">21分制</button>
+      <button class="format-btn" data-format="15">15分制</button>
+      <button class="format-btn" data-format="11">11分制</button>
+    </div>
   </header>
 
   <!-- 存储警告 -->
@@ -400,7 +424,6 @@
         <span class="serve-indicator">🏃 发球</span>
       </div>
       <span class="score-number" id="scoreA">0</span>
-      <span class="score-btn-label">+1</span>
     </button>
 
     <!-- B队 -->
@@ -410,7 +433,6 @@
         <span class="serve-indicator">🏃 发球</span>
       </div>
       <span class="score-number" id="scoreB">0</span>
-      <span class="score-btn-label">+1</span>
     </button>
   </main>
 
@@ -531,18 +553,28 @@
   const historyToggle = $('#historyToggle');
   const historyStream = $('#historyStream');
   const loadingSpinner = $('#loadingSpinner');
+  const formatBtns = document.querySelectorAll('.format-btn');
 
   // ===== 常量 =====
   const LS_KEY = 'badminton_scorer_v1';
   const DEBOUNCE_MS = 300;
-  const POINTS_TO_WIN = 21;
-  const MAX_POINTS = 30;
   const GAMES_TO_WIN = 2;
-  const SWITCH_AT = 11;
+
+  // 赛制规则：得分即得发球权，三局两胜
+  const FORMAT_RULES = {
+    '21': { pointsToWin: 21, maxPoints: 30, switchAt: 11 },
+    '15': { pointsToWin: 15, maxPoints: 21, switchAt: 8 },
+    '11': { pointsToWin: 11, maxPoints: 13, switchAt: 6 }
+  };
+
+  function getRules() {
+    return FORMAT_RULES[state.format] || FORMAT_RULES['21'];
+  }
 
   // ===== 状态 =====
   let state = {
     status: 'loading',        // loading | before_match | playing | paused | between_games | finished
+    format: '21',             // '21' | '15' | '11'
     currentGame: 1,
     games: [],                // [{scores: {A, B}, winner: null|'A'|'B'}]
     server: 'A',              // 当前发球方
@@ -655,10 +687,9 @@
 
   function updateStatusBar() {
     const game = state.currentGame;
-    const totalGames = state.games.length + 1;
     switch (state.status) {
-      case 'before_match': statusBar.textContent = '准备开始'; break;
-      case 'playing': statusBar.textContent = `第 ${game} 局 | 三局两胜`; break;
+      case 'before_match': statusBar.textContent = `${state.format}分制 | 准备开始`; break;
+      case 'playing': statusBar.textContent = `第 ${game} 局 | ${state.format}分制`; break;
       case 'paused': statusBar.textContent = `第 ${game} 局 | 暂停中`; break;
       case 'between_games': statusBar.textContent = `第 ${game - 1} 局结束`; break;
       case 'finished': statusBar.textContent = '比赛结束'; break;
@@ -669,10 +700,12 @@
   function updateButtonStates() {
     const s = currentScores();
     const canUndo = state.history.length > 0 && state.status === 'playing';
+    const canChangeFormat = state.status === 'before_match' || state.status === 'finished';
     btnUndo.disabled = !canUndo;
     btnPause.disabled = state.status !== 'playing' && state.status !== 'paused';
     btnPause.textContent = state.status === 'paused' ? '▶ 继续' : '⏸ 暂停';
     btnReset.disabled = state.status === 'loading';
+    formatBtns.forEach(b => { b.disabled = !canChangeFormat; });
   }
 
   function renderHistory() {
@@ -703,19 +736,19 @@
 
   // ===== 计分逻辑 =====
   function isGameOver(scoreAVal, scoreBVal) {
-    // 30分上限：任一方到30立即结束
-    if (scoreAVal >= MAX_POINTS || scoreBVal >= MAX_POINTS) return true;
-    // 21分且领先2分
-    if (scoreAVal >= POINTS_TO_WIN && scoreAVal - scoreBVal >= 2) return true;
-    if (scoreBVal >= POINTS_TO_WIN && scoreBVal - scoreAVal >= 2) return true;
+    const { pointsToWin, maxPoints } = getRules();
+    if (scoreAVal >= maxPoints || scoreBVal >= maxPoints) return true;
+    if (scoreAVal >= pointsToWin && scoreAVal - scoreBVal >= 2) return true;
+    if (scoreBVal >= pointsToWin && scoreBVal - scoreAVal >= 2) return true;
     return false;
   }
 
   function getGameWinner(scoreAVal, scoreBVal) {
-    if (scoreAVal >= MAX_POINTS) return 'A';
-    if (scoreBVal >= MAX_POINTS) return 'B';
-    if (scoreAVal >= POINTS_TO_WIN && scoreAVal - scoreBVal >= 2) return 'A';
-    if (scoreBVal >= POINTS_TO_WIN && scoreBVal - scoreAVal >= 2) return 'B';
+    const { pointsToWin, maxPoints } = getRules();
+    if (scoreAVal >= maxPoints) return 'A';
+    if (scoreBVal >= maxPoints) return 'B';
+    if (scoreAVal >= pointsToWin && scoreAVal - scoreBVal >= 2) return 'A';
+    if (scoreBVal >= pointsToWin && scoreBVal - scoreAVal >= 2) return 'B';
     return null;
   }
 
@@ -725,6 +758,16 @@
 
   // ===== 操作 =====
   function score(team) {
+    // 首次得分自动开始比赛
+    if (state.status === 'before_match') {
+      state.status = 'playing';
+      state.currentGame = 1;
+      state.games = [];
+      state.history = [];
+      state.server = 'A';
+      state.switchedSides = false;
+    }
+
     if (state.status !== 'playing') return;
 
     // 防抖
@@ -776,13 +819,9 @@
     }
 
     // 第三局换场检查
+    const { switchAt } = getRules();
     if (state.currentGame === 3 && !state.switchedSides &&
-        ((winner === 'A' && s.A === SWITCH_AT) || (winner === null &&
-         ((s.A === SWITCH_AT && s.B <= SWITCH_AT - 2) || (s.B === SWITCH_AT && s.A <= SWITCH_AT - 2))))) {
-      // 任一方先到11分
-    }
-    if (state.currentGame === 3 && !state.switchedSides &&
-        (s.A >= SWITCH_AT || s.B >= SWITCH_AT)) {
+        (s.A >= switchAt || s.B >= switchAt)) {
       state.status = 'paused';
       state.switchedSides = true;
       updateAll();
@@ -835,7 +874,8 @@
     // 第三局换边回退
     if (state.currentGame === 3 && state.switchedSides) {
       const s = currentScores();
-      if (s.A < SWITCH_AT && s.B < SWITCH_AT) {
+      const { switchAt } = getRules();
+      if (s.A < switchAt && s.B < switchAt) {
         state.switchedSides = false;
       }
     }
@@ -886,21 +926,28 @@
     announce(`第 ${state.currentGame} 局开始`);
   }
 
-  function resetMatch() {
+  function resetMatch(keepFormat) {
+    const currentFormat = state.format || '21';
     state = {
       status: 'before_match',
+      format: keepFormat ? currentFormat : (state.format || '21'),
       currentGame: 1,
       games: [],
       server: 'A',
       history: [],
       switchedSides: false
     };
+    updateFormatBtns();
     lastScoreTime = 0;
     updateAll();
     saveState();
     hideAllOverlays();
     confirmReset.classList.remove('visible');
     announce('比赛已重置');
+  }
+
+  function updateFormatBtns() {
+    formatBtns.forEach(b => b.classList.toggle('active', b.dataset.format === state.format));
   }
 
   // ===== 遮罩层 =====
@@ -986,6 +1033,19 @@
   }
 
   // ===== 事件绑定 =====
+  // 赛制切换（仅比赛前/结束后可切换）
+  formatBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (state.status !== 'before_match' && state.status !== 'finished') return;
+      const newFormat = btn.dataset.format;
+      if (newFormat === state.format) return;
+      state.format = newFormat;
+      formatBtns.forEach(b => b.classList.toggle('active', b.dataset.format === newFormat));
+      resetMatch(true);
+      announce(`${newFormat}分制`);
+    });
+  });
+
   panelA.addEventListener('click', () => score('A'));
   panelB.addEventListener('click', () => score('B'));
   btnUndo.addEventListener('click', undo);
@@ -1104,6 +1164,9 @@
 
     // 恢复界面
     updateAll();
+
+    // 同步赛制按钮
+    updateFormatBtns();
 
     // 如果恢复后是暂停状态，显示暂停遮罩
     if (state.status === 'paused') {
