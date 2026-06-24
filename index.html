@@ -298,18 +298,6 @@
     border-top: 1px solid var(--color-divider);
     padding: 8px 16px;
   }
-  .history-toggle {
-    background: none;
-    border: none;
-    color: var(--color-text-secondary);
-    font-size: 1.6rem;
-    cursor: pointer;
-    padding: 4px 0;
-    width: 100%;
-    text-align: left;
-    font-weight: 600;
-    min-height: 32px;
-  }
   .history-stream {
     display: flex;
     flex-wrap: wrap;
@@ -451,10 +439,7 @@
 
   <!-- 得分历史 -->
   <div class="history-area">
-    <button class="history-toggle" id="historyToggle" aria-expanded="false">
-      得分历史 ▸
-    </button>
-    <div class="history-stream" id="historyStream" style="display:none" aria-label="得分记录"></div>
+    <div class="history-stream" id="historyStream" aria-label="得分记录"></div>
   </div>
 
 </div>
@@ -550,7 +535,6 @@
   const btnConfirmReset = $('#btnConfirmReset');
   const btnCancelReset = $('#btnCancelReset');
   const srAnnounce = $('#srAnnounce');
-  const historyToggle = $('#historyToggle');
   const historyStream = $('#historyStream');
   const loadingSpinner = $('#loadingSpinner');
   const formatBtns = document.querySelectorAll('.format-btn');
@@ -1064,12 +1048,6 @@
   pauseOverlay.querySelector('.overlay-bg').addEventListener('click', resumeFromPause);
 
   // 得分历史展开/收起
-  historyToggle.addEventListener('click', () => {
-    const isOpen = historyStream.style.display !== 'none';
-    historyStream.style.display = isOpen ? 'none' : 'flex';
-    historyToggle.textContent = isOpen ? '得分历史 ▸' : '得分历史 ▾';
-    historyToggle.setAttribute('aria-expanded', String(!isOpen));
-  });
 
   // ===== 键盘快捷键 =====
   document.addEventListener('keydown', (e) => {
