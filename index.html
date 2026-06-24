@@ -60,9 +60,9 @@
     padding: 12px 16px 8px;
     border-bottom: 1px solid var(--color-divider);
   }
-  .header h1 { font-size: 1.25rem; font-weight: 700; }
+  .header h1 { font-size: 2.5rem; font-weight: 700; }
   .header .status-bar {
-    font-size: 0.875rem;
+    font-size: 1.75rem;
     color: var(--color-text-secondary);
     margin-top: 2px;
   }
@@ -79,7 +79,7 @@
     border-radius: 14px;
     border: 1.5px solid var(--color-divider);
     background: var(--color-surface);
-    font-size: 0.8rem;
+    font-size: 1.6rem;
     font-weight: 600;
     cursor: pointer;
     color: var(--color-text-secondary);
@@ -103,8 +103,7 @@
     color: #E65100;
     text-align: center;
     padding: 8px 16px;
-    font-size: 0.8rem;
-    border-bottom: 1px solid #FFE0B2;
+    font-size: 1.6rem;
   }
   .warning-banner.visible { display: block; }
 
@@ -120,10 +119,10 @@
   /* 始终上下排列 */
   .score-area { flex-direction: column; }
   .score-panel { flex-direction: row; align-items: center; justify-content: center; padding: 12px 16px; position: relative; }
-  .score-number { font-size: 4rem; text-align: center; }
+  .score-number { font-size: 8rem; text-align: center; }
   /* 横屏时缩小字体以适应 */
   @media (orientation: landscape) {
-    .score-number { font-size: 3rem; }
+    .score-number { font-size: 6rem; }
   }
 
   .score-panel {
@@ -176,10 +175,10 @@
   }
   .team-name {
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 2rem;
   }
   .serve-indicator {
-    font-size: 0.75rem;
+    font-size: 1.5rem;
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 10px;
@@ -215,7 +214,7 @@
     border-radius: 12px;
     border: 1px solid var(--color-divider);
     background: var(--color-surface);
-    font-size: 0.9rem;
+    font-size: 1.8rem;
     font-weight: 600;
     cursor: pointer;
     color: var(--color-text);
@@ -260,22 +259,24 @@
     width: 90%;
   }
   .overlay-content h2 {
-    font-size: 1.5rem;
+    font-size: 3rem;
     margin-bottom: 12px;
   }
   .overlay-content p {
     color: var(--color-text-secondary);
     margin-bottom: 16px;
     line-height: 1.5;
+    font-size: 1.4rem;
   }
   .overlay-content .btn {
     display: inline-flex;
     margin: 4px;
+    font-size: 1.4rem;
   }
 
   /* ===== 比赛结束页 ===== */
   .winner-highlight {
-    font-size: 2.5rem;
+    font-size: 5rem;
     font-weight: 900;
     padding: 16px;
     border-radius: var(--radius);
@@ -285,7 +286,7 @@
   .winner-highlight.win-b { background: var(--color-b-bg); color: var(--color-b); }
 
   .game-summary {
-    font-size: 0.95rem;
+    font-size: 1.9rem;
     color: var(--color-text-secondary);
     margin: 8px 0;
     line-height: 1.8;
@@ -302,7 +303,7 @@
     background: none;
     border: none;
     color: var(--color-text-secondary);
-    font-size: 0.8rem;
+    font-size: 1.6rem;
     cursor: pointer;
     padding: 4px 0;
     width: 100%;
@@ -317,10 +318,10 @@
     align-items: center;
   }
   .history-dot {
-    width: 24px;
-    height: 24px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
-    font-size: 0.65rem;
+    font-size: 1.3rem;
     font-weight: 700;
     color: #FFF;
     display: flex;
@@ -358,7 +359,7 @@
     text-align: center;
   }
   .confirm-box h3 { margin-bottom: 8px; }
-  .confirm-box p { color: var(--color-text-secondary); margin-bottom: 16px; font-size: 0.9rem; }
+  .confirm-box p { color: var(--color-text-secondary); margin-bottom: 16px; font-size: 1.8rem; }
   .confirm-box .btn-group { display: flex; gap: 8px; justify-content: center; }
 
   /* ===== 加载动画 ===== */
@@ -404,8 +405,8 @@
     <h1>🏸 羽毛球记分</h1>
     <div class="status-bar" id="statusBar" aria-live="polite">准备开始</div>
     <div class="format-selector" id="formatSelector">
-      <button class="format-btn active" data-format="21">21分制</button>
-      <button class="format-btn" data-format="15">15分制</button>
+      <button class="format-btn" data-format="21">21分制</button>
+      <button class="format-btn active" data-format="15">15分制</button>
       <button class="format-btn" data-format="11">11分制</button>
     </div>
   </header>
@@ -568,13 +569,13 @@
   };
 
   function getRules() {
-    return FORMAT_RULES[state.format] || FORMAT_RULES['21'];
+    return FORMAT_RULES[state.format] || FORMAT_RULES['15'];
   }
 
   // ===== 状态 =====
   let state = {
     status: 'loading',        // loading | before_match | playing | paused | between_games | finished
-    format: '21',             // '21' | '15' | '11'
+    format: '15',             // '21' | '15' | '11'
     currentGame: 1,
     games: [],                // [{scores: {A, B}, winner: null|'A'|'B'}]
     server: 'A',              // 当前发球方
@@ -711,7 +712,7 @@
   function renderHistory() {
     historyStream.innerHTML = '';
     if (state.history.length === 0) {
-      historyStream.innerHTML = '<span style="color:#9E9E9E;font-size:0.75rem;">暂无记录</span>';
+      historyStream.innerHTML = '<span style="color:#9E9E9E;font-size:1.5rem;">暂无记录</span>';
       return;
     }
     // 只显示当前局的历史
@@ -728,7 +729,7 @@
     }
     if (currentGameHistory.length > 40) {
       const more = document.createElement('span');
-      more.style.cssText = 'font-size:0.7rem;color:#9E9E9E';
+      more.style.cssText = 'font-size:1.4rem;color:#9E9E9E';
       more.textContent = `... +${currentGameHistory.length - 40}`;
       historyStream.appendChild(more);
     }
@@ -927,7 +928,7 @@
   }
 
   function resetMatch(keepFormat) {
-    const currentFormat = state.format || '21';
+    const currentFormat = state.format || '15';
     state = {
       status: 'before_match',
       format: keepFormat ? currentFormat : (state.format || '21'),
