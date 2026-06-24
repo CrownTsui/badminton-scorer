@@ -959,7 +959,7 @@
     resultContent.innerHTML = `
       <h2>第 ${state.currentGame} 局结束</h2>
       <div class="winner-highlight ${winner === 'A' ? 'win-a' : 'win-b'}">
-        ${winner} 队胜 (${s.A} - ${s.B})
+        ${winner} 队胜<br>(${s.A} - ${s.B})
       </div>
       <div class="game-summary">
         ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
