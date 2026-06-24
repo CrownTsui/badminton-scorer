@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>🏸 羽毛球记分</title>
+<style>
+  /* ===== 基础重置与变量 ===== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --color-a: #C62828;        /* A队 — 红色系 */
+    --color-a-light: #EF5350;
+    --color-a-bg: #FFEBEE;
+    --color-b: #0D47A1;        /* B队 — 蓝色系 */
+    --color-b-light: #42A5F5;
+    --color-b-bg: #E3F2FD;
+    --color-bg: #FAFAFA;
+    --color-surface: #FFFFFF;
+    --color-text: #212121;
+    --color-text-secondary: #616161;
+    --color-divider: #E0E0E0;
+    --color-gold: #F9A825;
+    --color-success: #2E7D32;
+    --radius: 16px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.1);
+    --shadow-lg: 0 4px 16px rgba(0,0,0,0.15);
+  }
+
+  /* ===== 全局 ===== */
+  html { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-height: 100%;
+    min-height: 100dvh;
+    display: flex;
+    justify-content: center;
+    align-items: stretch;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* ===== 头部 ===== */
+  .header {
+    text-align: center;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+  .header h1 { font-size: 1.25rem; font-weight: 700; }
+  .header .status-bar {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-top: 2px;
+  }
+
+  /* ===== 警告横幅 ===== */
+  .warning-banner {
+    display: none;
+    background: #FFF3E0;
+    color: #E65100;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    border-bottom: 1px solid #FFE0B2;
+  }
+  .warning-banner.visible { display: block; }
+
+  /* ===== 主计分区域 ===== */
+  .score-area {
+    flex: 1;
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    min-height: 0;
+  }
+
+  /* 竖屏：上下排列；横屏：左右排列 */
+  @media (orientation: portrait) {
+    .score-area { flex-direction: column; }
+    .score-panel { flex-direction: row; align-items: center; justify-content: space-between; padding: 12px 16px; }
+    .score-number { font-size: 4rem; }
+  }
+  @media (orientation: landscape) {
+    .score-area { flex-direction: row; }
+    .score-panel { flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
+    .score-number { font-size: 3.5rem; }
+  }
+
+  .score-panel {
+    flex: 1;
+    display: flex;
+    border-radius: var(--radius);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.1s, background-color 0.15s;
+    min-height: 100px;
+    gap: 12px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* A 队面板 */
+  .score-panel.team-a {
+    background: var(--color-a-bg);
+    border: 3px solid transparent;
+  }
+  .score-panel.team-a.serving {
+    border-color: var(--color-a);
+    box-shadow: 0 0 0 3px rgba(198,40,40,0.2);
+  }
+  .score-panel.team-a:active { transform: scale(0.97); background-color: #FFCDD2; }
+
+  /* B 队面板 */
+  .score-panel.team-b {
+    background: var(--color-b-bg);
+    border: 3px solid transparent;
+  }
+  .score-panel.team-b.serving {
+    border-color: var(--color-b);
+    box-shadow: 0 0 0 3px rgba(13,71,161,0.2);
+  }
+  .score-panel.team-b:active { transform: scale(0.97); background-color: #BBDEFB; }
+
+  /* 冷却状态 */
+  .score-panel.cooling { pointer-events: none; opacity: 0.85; }
+
+  /* 队名和发球标识 */
+  .team-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 60px;
+  }
+  .team-name {
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .serve-indicator {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .serving .serve-indicator { opacity: 1; }
+  .team-a .serve-indicator { background: var(--color-a); color: #FFF; }
+  .team-b .serve-indicator { background: var(--color-b); color: #FFF; }
+
+  /* 比分数字 */
+  .score-number {
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    color: var(--color-text);
+    transition: transform 0.15s ease;
+  }
+  .score-number.pulse { transform: scale(1.25); }
+
+  /* 得分按钮 */
+  .score-btn-label {
+    font-size: 1.2rem;
+    font-weight: 700;
+    padding: 8px 20px;
+    border-radius: 12px;
+    color: #FFF;
+  }
+  .team-a .score-btn-label { background: var(--color-a); }
+  .team-b .score-btn-label { background: var(--color-b); }
+
+  /* ===== 控制栏 ===== */
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--color-divider);
+  }
+  .btn {
+    padding: 10px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--color-divider);
+    background: var(--color-surface);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--color-text);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s;
+    min-height: 48px;
+    min-width: 48px;
+    justify-content: center;
+  }
+  .btn:active { background: #EEEEEE; }
+  .btn:disabled { opacity: 0.4; pointer-events: none; }
+  .btn.danger { color: #C62828; border-color: #FFCDD2; }
+  .btn.danger:active { background: #FFEBEE; }
+
+  /* ===== 遮罩层 ===== */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+  .overlay.visible { display: flex; }
+
+  .overlay-bg {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  .overlay-content {
+    position: relative;
+    z-index: 1;
+    padding: 24px;
+    max-width: 360px;
+    width: 90%;
+  }
+  .overlay-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 12px;
+  }
+  .overlay-content p {
+    color: var(--color-text-secondary);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .overlay-content .btn {
+    display: inline-flex;
+    margin: 4px;
+  }
+
+  /* ===== 比赛结束页 ===== */
+  .winner-highlight {
+    font-size: 2.5rem;
+    font-weight: 900;
+    padding: 16px;
+    border-radius: var(--radius);
+    margin: 12px 0;
+  }
+  .winner-highlight.win-a { background: var(--color-a-bg); color: var(--color-a); }
+  .winner-highlight.win-b { background: var(--color-b-bg); color: var(--color-b); }
+
+  .game-summary {
+    font-size: 0.95rem;
+    color: var(--color-text-secondary);
+    margin: 8px 0;
+    line-height: 1.8;
+  }
+
+  /* ===== 得分历史 ===== */
+  .history-area {
+    border-top: 1px solid var(--color-divider);
+    padding: 8px 16px;
+    max-height: 100px;
+    overflow-y: auto;
+  }
+  .history-toggle {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 4px 0;
+    width: 100%;
+    text-align: left;
+    font-weight: 600;
+    min-height: 32px;
+  }
+  .history-stream {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+  .history-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #FFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .history-dot.team-a { background: var(--color-a-light); }
+  .history-dot.team-b { background: var(--color-b-light); }
+
+  /* ===== 确认对话框 ===== */
+  .confirm-dialog {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .confirm-dialog.visible { display: flex; }
+
+  .confirm-bg {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+  }
+  .confirm-box {
+    position: relative;
+    z-index: 1;
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow-lg);
+    max-width: 320px;
+    width: 90%;
+    text-align: center;
+  }
+  .confirm-box h3 { margin-bottom: 8px; }
+  .confirm-box p { color: var(--color-text-secondary); margin-bottom: 16px; font-size: 0.9rem; }
+  .confirm-box .btn-group { display: flex; gap: 8px; justify-content: center; }
+
+  /* ===== 加载动画 ===== */
+  .loading-spinner {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-surface);
+  }
+  .loading-spinner.visible { display: flex; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--color-divider);
+    border-top-color: var(--color-text);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ===== 屏幕阅读器专用（视觉隐藏） ===== */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- 加载中 -->
+<div class="loading-spinner" id="loadingSpinner">
+  <div class="spinner" role="status" aria-label="加载中"></div>
+</div>
+
+<!-- 应用主体 -->
+<div class="app" id="app">
+
+  <!-- 头部 -->
+  <header class="header">
+    <h1>🏸 羽毛球记分</h1>
+    <div class="status-bar" id="statusBar" aria-live="polite">准备开始</div>
+  </header>
+
+  <!-- 存储警告 -->
+  <div class="warning-banner" id="warningBanner" role="alert">
+    ⚠️ 浏览器不支持数据保存，刷新后比分将丢失
+  </div>
+
+  <!-- 主计分区域 -->
+  <main class="score-area">
+    <!-- A队 -->
+    <button class="score-panel team-a" id="panelA" aria-label="A 队得分，当前 0 比 0">
+      <div class="team-info">
+        <span class="team-name">A 队</span>
+        <span class="serve-indicator">🏃 发球</span>
+      </div>
+      <span class="score-number" id="scoreA">0</span>
+      <span class="score-btn-label">+1</span>
+    </button>
+
+    <!-- B队 -->
+    <button class="score-panel team-b" id="panelB" aria-label="B 队得分，当前 0 比 0">
+      <div class="team-info">
+        <span class="team-name">B 队</span>
+        <span class="serve-indicator">🏃 发球</span>
+      </div>
+      <span class="score-number" id="scoreB">0</span>
+      <span class="score-btn-label">+1</span>
+    </button>
+  </main>
+
+  <!-- 控制栏 -->
+  <nav class="controls" aria-label="比赛控制">
+    <button class="btn" id="btnUndo" aria-label="撤销上一步得分，快捷键 Ctrl+Z">
+      ↶ 撤销
+    </button>
+    <button class="btn" id="btnPause" aria-label="暂停比赛，快捷键 空格键">
+      ⏸ 暂停
+    </button>
+    <button class="btn danger" id="btnReset" aria-label="重置比赛">
+      🔄 重置
+    </button>
+  </nav>
+
+  <!-- 得分历史 -->
+  <div class="history-area">
+    <button class="history-toggle" id="historyToggle" aria-expanded="false">
+      得分历史 ▸
+    </button>
+    <div class="history-stream" id="historyStream" style="display:none" aria-label="得分记录"></div>
+  </div>
+
+</div>
+
+<!-- 暂停遮罩 -->
+<div class="overlay" id="pauseOverlay" role="dialog" aria-label="比赛暂停中">
+  <div class="overlay-bg"></div>
+  <div class="overlay-content">
+    <h2>⏸ 暂停中</h2>
+    <p id="pauseScoreText">比分 0 - 0</p>
+    <button class="btn" id="btnResume" style="background:var(--color-success);color:#FFF;border:none;">
+      ▶ 继续比赛
+    </button>
+  </div>
+</div>
+
+<!-- 局间/结束遮罩 -->
+<div class="overlay" id="resultOverlay" role="dialog" aria-label="比赛结果">
+  <div class="overlay-bg"></div>
+  <div class="overlay-content" id="resultContent"></div>
+</div>
+
+<!-- 换场提示 -->
+<div class="overlay" id="switchSidesOverlay" role="dialog" aria-label="交换场地">
+  <div class="overlay-bg"></div>
+  <div class="overlay-content">
+    <h2>🔄 交换场地</h2>
+    <p>请双方交换场地后继续</p>
+    <button class="btn" id="btnSwitchDone" style="background:var(--color-success);color:#FFF;border:none;">
+      ✓ 已换边，继续
+    </button>
+  </div>
+</div>
+
+<!-- 重置确认对话框 -->
+<div class="confirm-dialog" id="confirmReset" role="alertdialog" aria-label="确认重置比赛">
+  <div class="confirm-bg"></div>
+  <div class="confirm-box">
+    <h3>🔄 重置比赛？</h3>
+    <p>这将清除当前比赛的所有记录，此操作不可撤销。</p>
+    <div class="btn-group">
+      <button class="btn" id="btnConfirmReset" style="background:var(--color-a);color:#FFF;border:none;">
+        确认重置
+      </button>
+      <button class="btn" id="btnCancelReset">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 屏幕阅读器播报区 -->
+<div class="sr-only" aria-live="assertive" id="srAnnounce"></div>
+
+<script>
+/* ===================================================================
+ * 羽毛球记分器 — 核心逻辑
+ * ===================================================================
+ * 状态机: loading → before_match ⇄ playing ⇄ paused
+ *          playing → between_games ⇄ playing
+ *          playing → finished → before_match
+ *
+ * 计分规则 (BWF标准):
+ *   - 21分制，三局两胜
+ *   - 20平后需领先2分
+ *   - 29平后先到30分者胜
+ *
+ * 数据模型 (LocalStorage key: "badminton_scorer_v1"):
+ *   { version:1, match:{ status, currentGame, games:[{scores:{A,B},winner}],
+ *     server, history:[{team,game,scoreA,scoreB,ts}], switchedSides } }
+ * =================================================================== */
+
+(function() {
+  'use strict';
+
+  // ===== DOM 引用缓存 =====
+  const $ = (sel) => document.querySelector(sel);
+  const panelA = $('#panelA');
+  const panelB = $('#panelB');
+  const scoreA = $('#scoreA');
+  const scoreB = $('#scoreB');
+  const statusBar = $('#statusBar');
+  const warningBanner = $('#warningBanner');
+  const btnUndo = $('#btnUndo');
+  const btnPause = $('#btnPause');
+  const btnResume = $('#btnResume');
+  const btnReset = $('#btnReset');
+  const pauseOverlay = $('#pauseOverlay');
+  const pauseScoreText = $('#pauseScoreText');
+  const resultOverlay = $('#resultOverlay');
+  const resultContent = $('#resultContent');
+  const switchSidesOverlay = $('#switchSidesOverlay');
+  const btnSwitchDone = $('#btnSwitchDone');
+  const confirmReset = $('#confirmReset');
+  const btnConfirmReset = $('#btnConfirmReset');
+  const btnCancelReset = $('#btnCancelReset');
+  const srAnnounce = $('#srAnnounce');
+  const historyToggle = $('#historyToggle');
+  const historyStream = $('#historyStream');
+  const loadingSpinner = $('#loadingSpinner');
+
+  // ===== 常量 =====
+  const LS_KEY = 'badminton_scorer_v1';
+  const DEBOUNCE_MS = 300;
+  const POINTS_TO_WIN = 21;
+  const MAX_POINTS = 30;
+  const GAMES_TO_WIN = 2;
+  const SWITCH_AT = 11;
+
+  // ===== 状态 =====
+  let state = {
+    status: 'loading',        // loading | before_match | playing | paused | between_games | finished
+    currentGame: 1,
+    games: [],                // [{scores: {A, B}, winner: null|'A'|'B'}]
+    server: 'A',              // 当前发球方
+    history: [],              // [{team, game, scoreA, scoreB, ts}]
+    switchedSides: false      // 第三局是否已换边
+  };
+
+  let lastScoreTime = 0;
+  let storageAvailable = true;
+
+  // ===== LocalStorage 操作 =====
+  function checkStorage() {
+    try {
+      const testKey = '__badminton_test__';
+      localStorage.setItem(testKey, '1');
+      localStorage.removeItem(testKey);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveState() {
+    if (!storageAvailable) return false;
+    try {
+      const data = { version: 1, match: state };
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+      return true;
+    } catch (e) {
+      console.warn('LocalStorage 写入失败:', e.message);
+      storageAvailable = false;
+      showWarning('⚠️ 浏览器存储空间不足，刷新后比分将丢失');
+      return false;
+    }
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      // 基本校验
+      if (!data || data.version !== 1) return null;
+      const m = data.match;
+      if (!m || typeof m.currentGame !== 'number' || !Array.isArray(m.games) || !Array.isArray(m.history)) return null;
+      if (!['before_match','playing','paused','between_games','finished'].includes(m.status)) return null;
+      // 校验比分范围
+      for (const g of m.games) {
+        if (typeof g.scores.A !== 'number' || typeof g.scores.B !== 'number') return null;
+        if (g.scores.A < 0 || g.scores.A > 30 || g.scores.B < 0 || g.scores.B > 30) return null;
+      }
+      return data;
+    } catch (e) {
+      console.warn('LocalStorage 数据损坏，丢弃');
+      localStorage.removeItem(LS_KEY);
+      return null;
+    }
+  }
+
+  function clearStorage() {
+    try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ }
+  }
+
+  // ===== UI 辅助 =====
+  function showWarning(msg) {
+    warningBanner.textContent = msg;
+    warningBanner.classList.add('visible');
+  }
+  function hideWarning() {
+    warningBanner.classList.remove('visible');
+  }
+
+  function announce(msg) {
+    srAnnounce.textContent = '';  // 触发重新朗读
+    requestAnimationFrame(() => { srAnnounce.textContent = msg; });
+  }
+
+  function updateAriaLabels() {
+    const s = currentScores();
+    panelA.setAttribute('aria-label', `A 队得分，当前 ${s.A} 比 ${s.B}`);
+    panelB.setAttribute('aria-label', `B 队得分，当前 ${s.A} 比 ${s.B}`);
+  }
+
+  function currentScores() {
+    const idx = state.currentGame - 1;
+    if (idx < state.games.length) {
+      return { A: state.games[idx].scores.A, B: state.games[idx].scores.B };
+    }
+    return { A: 0, B: 0 };
+  }
+
+  function pulseScore(el) {
+    el.classList.remove('pulse');
+    void el.offsetWidth; // reflow
+    el.classList.add('pulse');
+    setTimeout(() => el.classList.remove('pulse'), 200);
+  }
+
+  function updateScoreDisplay() {
+    const s = currentScores();
+    scoreA.textContent = s.A;
+    scoreB.textContent = s.B;
+    updateAriaLabels();
+  }
+
+  function updateServeDisplay() {
+    panelA.classList.toggle('serving', state.server === 'A');
+    panelB.classList.toggle('serving', state.server === 'B');
+  }
+
+  function updateStatusBar() {
+    const game = state.currentGame;
+    const totalGames = state.games.length + 1;
+    switch (state.status) {
+      case 'before_match': statusBar.textContent = '准备开始'; break;
+      case 'playing': statusBar.textContent = `第 ${game} 局 | 三局两胜`; break;
+      case 'paused': statusBar.textContent = `第 ${game} 局 | 暂停中`; break;
+      case 'between_games': statusBar.textContent = `第 ${game - 1} 局结束`; break;
+      case 'finished': statusBar.textContent = '比赛结束'; break;
+      default: statusBar.textContent = '加载中...';
+    }
+  }
+
+  function updateButtonStates() {
+    const s = currentScores();
+    const canUndo = state.history.length > 0 && state.status === 'playing';
+    btnUndo.disabled = !canUndo;
+    btnPause.disabled = state.status !== 'playing' && state.status !== 'paused';
+    btnPause.textContent = state.status === 'paused' ? '▶ 继续' : '⏸ 暂停';
+    btnReset.disabled = state.status === 'loading';
+  }
+
+  function renderHistory() {
+    historyStream.innerHTML = '';
+    if (state.history.length === 0) {
+      historyStream.innerHTML = '<span style="color:#9E9E9E;font-size:0.75rem;">暂无记录</span>';
+      return;
+    }
+    // 只显示当前局的历史
+    const currentGameHistory = state.history.filter(h => h.game === state.currentGame ||
+      (state.status === 'between_games' && h.game === state.currentGame - 1) ||
+      (state.status === 'finished' && h.game <= state.currentGame));
+    const show = currentGameHistory.slice(-40); // 最多显示最近40条
+
+    for (const h of show) {
+      const dot = document.createElement('span');
+      dot.className = `history-dot ${h.team === 'A' ? 'team-a' : 'team-b'}`;
+      dot.textContent = h.team;
+      historyStream.appendChild(dot);
+    }
+    if (currentGameHistory.length > 40) {
+      const more = document.createElement('span');
+      more.style.cssText = 'font-size:0.7rem;color:#9E9E9E';
+      more.textContent = `... +${currentGameHistory.length - 40}`;
+      historyStream.appendChild(more);
+    }
+  }
+
+  // ===== 计分逻辑 =====
+  function isGameOver(scoreAVal, scoreBVal) {
+    // 30分上限：任一方到30立即结束
+    if (scoreAVal >= MAX_POINTS || scoreBVal >= MAX_POINTS) return true;
+    // 21分且领先2分
+    if (scoreAVal >= POINTS_TO_WIN && scoreAVal - scoreBVal >= 2) return true;
+    if (scoreBVal >= POINTS_TO_WIN && scoreBVal - scoreAVal >= 2) return true;
+    return false;
+  }
+
+  function getGameWinner(scoreAVal, scoreBVal) {
+    if (scoreAVal >= MAX_POINTS) return 'A';
+    if (scoreBVal >= MAX_POINTS) return 'B';
+    if (scoreAVal >= POINTS_TO_WIN && scoreAVal - scoreBVal >= 2) return 'A';
+    if (scoreBVal >= POINTS_TO_WIN && scoreBVal - scoreAVal >= 2) return 'B';
+    return null;
+  }
+
+  function countGamesWon(team) {
+    return state.games.filter(g => g.winner === team).length;
+  }
+
+  // ===== 操作 =====
+  function score(team) {
+    if (state.status !== 'playing') return;
+
+    // 防抖
+    const now = Date.now();
+    if (now - lastScoreTime < DEBOUNCE_MS) return;
+    lastScoreTime = now;
+
+    // 冷却视觉
+    const panel = team === 'A' ? panelA : panelB;
+    panel.classList.add('cooling');
+    setTimeout(() => panel.classList.remove('cooling'), DEBOUNCE_MS);
+
+    // 确保当前局存在
+    const idx = state.currentGame - 1;
+    while (state.games.length <= idx) {
+      state.games.push({ scores: { A: 0, B: 0 }, winner: null });
+    }
+
+    const game = state.games[idx];
+    game.scores[team]++;
+    const s = game.scores;
+
+    // 记录历史
+    state.history.push({ team, game: state.currentGame, scoreA: s.A, scoreB: s.B, ts: Date.now() });
+    state.server = team; // 得分方获得发球权
+
+    // 检查比赛是否结束
+    const winner = getGameWinner(s.A, s.B);
+    if (winner) {
+      game.winner = winner;
+      const winsA = countGamesWon('A');
+      const winsB = countGamesWon('B');
+
+      if (winsA >= GAMES_TO_WIN || winsB >= GAMES_TO_WIN) {
+        // 比赛结束
+        state.status = 'finished';
+        updateAll();
+        saveState();
+        showFinishedOverlay(winner);
+        return;
+      }
+
+      // 局间
+      state.status = 'between_games';
+      updateAll();
+      saveState();
+      showBetweenGamesOverlay(winner);
+      return;
+    }
+
+    // 第三局换场检查
+    if (state.currentGame === 3 && !state.switchedSides &&
+        ((winner === 'A' && s.A === SWITCH_AT) || (winner === null &&
+         ((s.A === SWITCH_AT && s.B <= SWITCH_AT - 2) || (s.B === SWITCH_AT && s.A <= SWITCH_AT - 2))))) {
+      // 任一方先到11分
+    }
+    if (state.currentGame === 3 && !state.switchedSides &&
+        (s.A >= SWITCH_AT || s.B >= SWITCH_AT)) {
+      state.status = 'paused';
+      state.switchedSides = true;
+      updateAll();
+      saveState();
+      showSwitchSidesOverlay();
+      return;
+    }
+
+    // 正常得分
+    updateAll();
+    saveState();
+    announce(`${team}队得分，${s.A} 比 ${s.B}`);
+
+    // 边缘比分播报
+    if (s.A >= 20 && s.B >= 20 && s.A === s.B) {
+      announce(`平分! ${s.A} 比 ${s.B}`);
+    }
+  }
+
+  function undo() {
+    if (state.status !== 'playing') return;
+    if (state.history.length === 0) return;
+
+    const last = state.history.pop();
+    // 只撤销当前局的得分
+    if (last.game !== state.currentGame) {
+      state.history.push(last); // 放回去
+      return;
+    }
+
+    const idx = state.currentGame - 1;
+    if (idx < state.games.length) {
+      const game = state.games[idx];
+      game.scores[last.team]--;
+      // 如果局已标记winner，清除（这种情况不应该发生因为局间不允许撤销）
+      game.winner = null;
+    }
+
+    // 恢复发球权：回退到上一位得分者
+    if (state.history.length > 0) {
+      const prev = state.history[state.history.length - 1];
+      if (prev.game === state.currentGame) {
+        state.server = prev.team;
+      }
+    } else {
+      // 当前局无历史，A先发
+      state.server = 'A';
+    }
+
+    // 第三局换边回退
+    if (state.currentGame === 3 && state.switchedSides) {
+      const s = currentScores();
+      if (s.A < SWITCH_AT && s.B < SWITCH_AT) {
+        state.switchedSides = false;
+      }
+    }
+
+    updateAll();
+    saveState();
+    const s = currentScores();
+    announce(`撤销 ${last.team} 队得分，${s.A} 比 ${s.B}`);
+  }
+
+  function togglePause() {
+    if (state.status === 'playing') {
+      state.status = 'paused';
+      updateAll();
+      saveState();
+      showPauseOverlay();
+    } else if (state.status === 'paused') {
+      resumeFromPause();
+    }
+  }
+
+  function resumeFromPause() {
+    if (state.status !== 'paused') return;
+    state.status = 'playing';
+    lastScoreTime = 0; // 重置防抖
+    updateAll();
+    saveState();
+    hideAllOverlays();
+    announce('比赛继续');
+  }
+
+  function startNewGame() {
+    state.status = 'playing';
+    // 确保当前局存在
+    const idx = state.currentGame - 1;
+    while (state.games.length <= idx) {
+      state.games.push({ scores: { A: 0, B: 0 }, winner: null });
+    }
+    // 发球权：上一局胜者先发（首局 A 先发）
+    if (state.games.length > 0 && idx > 0) {
+      const prevWinner = state.games[idx - 1].winner;
+      state.server = prevWinner || 'A';
+    }
+    lastScoreTime = 0;
+    updateAll();
+    saveState();
+    hideAllOverlays();
+    announce(`第 ${state.currentGame} 局开始`);
+  }
+
+  function resetMatch() {
+    state = {
+      status: 'before_match',
+      currentGame: 1,
+      games: [],
+      server: 'A',
+      history: [],
+      switchedSides: false
+    };
+    lastScoreTime = 0;
+    updateAll();
+    saveState();
+    hideAllOverlays();
+    confirmReset.classList.remove('visible');
+    announce('比赛已重置');
+  }
+
+  // ===== 遮罩层 =====
+  function hideAllOverlays() {
+    pauseOverlay.classList.remove('visible');
+    resultOverlay.classList.remove('visible');
+    switchSidesOverlay.classList.remove('visible');
+  }
+
+  function showPauseOverlay() {
+    const s = currentScores();
+    pauseScoreText.textContent = `当前比分 ${s.A} - ${s.B} | 第 ${state.currentGame} 局`;
+    pauseOverlay.classList.add('visible');
+    announce('比赛暂停');
+  }
+
+  function showBetweenGamesOverlay(winner) {
+    const s = currentScores();
+    const winsA = countGamesWon('A');
+    const winsB = countGamesWon('B');
+
+    // 检查是否需要换边（第1局和第2局结束后换边）
+    const needSwitch = state.currentGame <= 2;
+
+    resultContent.innerHTML = `
+      <h2>第 ${state.currentGame} 局结束</h2>
+      <div class="winner-highlight ${winner === 'A' ? 'win-a' : 'win-b'}">
+        ${winner} 队胜 (${s.A} - ${s.B})
+      </div>
+      <div class="game-summary">
+        ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
+      </div>
+      <p style="color:#616161;">总局数: ${winsA} - ${winsB}</p>
+      ${needSwitch ? '<p style="color:#E65100;font-weight:600;">🔄 请交换场地</p>' : ''}
+      <button class="btn" id="btnNextGame" style="background:var(--color-success);color:#FFF;border:none;">
+        ▶ 开始第 ${state.currentGame + 1} 局
+      </button>
+    `;
+    resultOverlay.classList.add('visible');
+    announce(`第 ${state.currentGame} 局结束，${winner} 队获胜`);
+
+    document.getElementById('btnNextGame').addEventListener('click', () => {
+      state.currentGame++;
+      startNewGame();
+    });
+  }
+
+  function showFinishedOverlay(winner) {
+    const winsA = countGamesWon('A');
+    const winsB = countGamesWon('B');
+
+    resultContent.innerHTML = `
+      <h2>🏆 比赛结束</h2>
+      <div class="winner-highlight ${winner === 'A' ? 'win-a' : 'win-b'}">
+        ${winner} 队获胜!
+      </div>
+      <div class="game-summary">
+        总局数: ${winsA} - ${winsB}<br>
+        ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
+      </div>
+      <button class="btn" id="btnNewMatch" style="background:var(--color-success);color:#FFF;border:none;margin-top:12px;">
+        🔄 新比赛
+      </button>
+    `;
+    resultOverlay.classList.add('visible');
+    announce(`比赛结束，${winner} 队获胜! 总比分 ${winsA} 比 ${winsB}`);
+
+    document.getElementById('btnNewMatch').addEventListener('click', resetMatch);
+  }
+
+  function showSwitchSidesOverlay() {
+    switchSidesOverlay.classList.add('visible');
+    announce('请交换场地');
+  }
+
+  // ===== 全局更新 =====
+  function updateAll() {
+    updateScoreDisplay();
+    updateServeDisplay();
+    updateStatusBar();
+    updateButtonStates();
+    renderHistory();
+  }
+
+  // ===== 事件绑定 =====
+  panelA.addEventListener('click', () => score('A'));
+  panelB.addEventListener('click', () => score('B'));
+  btnUndo.addEventListener('click', undo);
+  btnPause.addEventListener('click', togglePause);
+  btnResume.addEventListener('click', resumeFromPause);
+  btnReset.addEventListener('click', () => {
+    confirmReset.classList.add('visible');
+  });
+  btnConfirmReset.addEventListener('click', resetMatch);
+  btnCancelReset.addEventListener('click', () => {
+    confirmReset.classList.remove('visible');
+  });
+  btnSwitchDone.addEventListener('click', resumeFromPause);
+
+  // 暂停遮罩点击背景继续
+  pauseOverlay.querySelector('.overlay-bg').addEventListener('click', resumeFromPause);
+
+  // 得分历史展开/收起
+  historyToggle.addEventListener('click', () => {
+    const isOpen = historyStream.style.display !== 'none';
+    historyStream.style.display = isOpen ? 'none' : 'flex';
+    historyToggle.textContent = isOpen ? '得分历史 ▸' : '得分历史 ▾';
+    historyToggle.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  // ===== 键盘快捷键 =====
+  document.addEventListener('keydown', (e) => {
+    // 在输入框中不处理
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    switch (e.key.toLowerCase()) {
+      case 'a':
+      case 'arrowleft':
+        e.preventDefault();
+        score('A');
+        break;
+      case 'b':
+      case 'arrowright':
+        e.preventDefault();
+        score('B');
+        break;
+      case ' ':
+        e.preventDefault();
+        togglePause();
+        break;
+      case 'z':
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          undo();
+        }
+        break;
+    }
+  });
+
+  // ===== 标签页切换恢复 =====
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.status === 'playing') {
+      // 从 localStorage 重新加载以同步多标签页状态
+      const data = loadState();
+      if (data && data.match) {
+        const restored = data.match;
+        // 仅当外部数据比当前更新时才同步
+        if (restored.history.length !== state.history.length) {
+          state = restored;
+          updateAll();
+          announce('比分已从其他标签页同步');
+        }
+      }
+    }
+  });
+
+  // pageshow (bfcache恢复)
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      const data = loadState();
+      if (data && data.match) {
+        state = data.match;
+        updateAll();
+        hideAllOverlays();
+        if (state.status === 'paused') {
+          showPauseOverlay();
+        }
+      }
+    }
+  });
+
+  // ===== 触摸振动反馈 =====
+  function vibrate() {
+    if (navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  }
+  panelA.addEventListener('pointerdown', vibrate);
+  panelB.addEventListener('pointerdown', vibrate);
+
+  // ===== 初始化 =====
+  function init() {
+    // 检查存储
+    storageAvailable = checkStorage();
+    if (!storageAvailable) {
+      showWarning('⚠️ 浏览器不支持数据保存，刷新后比分将丢失');
+    }
+
+    // 尝试恢复状态
+    const data = loadState();
+    if (data && data.match) {
+      state = data.match;
+      // 恢复时暂停的比赛保持暂停
+      if (state.status === 'loading') state.status = 'before_match';
+    } else {
+      state.status = 'before_match';
+    }
+
+    // 隐藏加载动画
+    loadingSpinner.classList.remove('visible');
+
+    // 恢复界面
+    updateAll();
+
+    // 如果恢复后是暂停状态，显示暂停遮罩
+    if (state.status === 'paused') {
+      showPauseOverlay();
+    }
+    if (state.status === 'between_games') {
+      const idx = state.currentGame - 2;
+      const winner = idx >= 0 && idx < state.games.length ? state.games[idx].winner : 'A';
+      showBetweenGamesOverlay(winner || 'A');
+    }
+    if (state.status === 'finished') {
+      const lastGame = state.games[state.games.length - 1];
+      const winner = lastGame ? lastGame.winner : 'A';
+      showFinishedOverlay(winner || 'A');
+    }
+
+    announce('羽毛球记分器已就绪');
+  }
+
+  // 启动
+  loadingSpinner.classList.add('visible');
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();
+</script>
+</body>
+</html>
