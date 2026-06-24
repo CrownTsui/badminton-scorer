@@ -10,10 +10,8 @@
 
   :root {
     --color-a: #C62828;
-    --color-a-light: #EF5350;
     --color-a-bg: #FFEBEE;
     --color-b: #0D47A1;
-    --color-b-light: #42A5F5;
     --color-b-bg: #E3F2FD;
     --color-bg: #F2F2F7;
     --color-surface: #FFFFFF;
@@ -704,7 +702,7 @@
     const currentFormat = state.format || '15';
     state = {
       status: 'before_match',
-      format: keepFormat ? currentFormat : (state.format || '21'),
+      format: keepFormat ? currentFormat : (state.format || '15'),
       currentGame: 1,
       games: [],
       server: 'A',
@@ -753,7 +751,7 @@
       <div class="game-summary">
         ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
       </div>
-      <p style="color:var(--color-text-dim);">总局数: ${winsA} - ${winsB}</p>
+      <p style="color:var(--color-text-secondary);">总局数: ${winsA} - ${winsB}</p>
       ${needSwitch ? '<p style="color:var(--color-a);font-weight:600;margin-top:8px;">请交换场地</p>' : ''}
       <button class="btn" id="btnNextGame" style="background:var(--color-a);color:#FFF;">
         ▶ 开始第 ${state.currentGame + 1} 局
@@ -850,8 +848,6 @@
 
   // 暂停遮罩点击背景继续
   pauseOverlay.querySelector('.overlay-bg').addEventListener('click', resumeFromPause);
-
-  // 得分历史展开/收起
 
   // ===== 键盘快捷键 =====
   document.addEventListener('keydown', (e) => {
