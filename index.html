@@ -201,6 +201,18 @@
   }
   .score-number.pulse { transform: scale(1.25); }
 
+  /* 双击提示 */
+  .double-tap-hint {
+    position: absolute;
+    right: 12px;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    opacity: 0.4;
+    text-align: center;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+
   /* 得分按钮（整个面板可点击） */
 
   /* ===== 控制栏 ===== */
@@ -413,6 +425,7 @@
         <span class="serve-indicator">🏃 发球</span>
       </div>
       <span class="score-number" id="scoreA">0</span>
+      <span class="double-tap-hint">双击<br>得分</span>
     </button>
 
     <!-- B队 -->
@@ -422,6 +435,7 @@
         <span class="serve-indicator">🏃 发球</span>
       </div>
       <span class="score-number" id="scoreB">0</span>
+      <span class="double-tap-hint">双击<br>得分</span>
     </button>
   </main>
 
