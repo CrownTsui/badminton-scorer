@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>🏸 羽毛球记分</title>
 <style>
@@ -137,6 +137,7 @@
     min-height: 240px;
     gap: 12px;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 
   /* A 队面板 */
@@ -541,7 +542,6 @@
 
   // ===== 常量 =====
   const LS_KEY = 'badminton_scorer_v1';
-  const DEBOUNCE_MS = 300;
   const GAMES_TO_WIN = 2;
 
   // 赛制规则：得分即得发球权，三局两胜
@@ -566,7 +566,6 @@
     switchedSides: false      // 第三局是否已换边
   };
 
-  let lastScoreTime = 0;
   let storageAvailable = true;
 
   // ===== LocalStorage 操作 =====
@@ -754,15 +753,13 @@
 
     if (state.status !== 'playing') return;
 
-    // 防抖
-    const now = Date.now();
-    if (now - lastScoreTime < DEBOUNCE_MS) return;
-    lastScoreTime = now;
+    // 振动反馈
+    if (navigator.vibrate) navigator.vibrate(15);
 
     // 冷却视觉
     const panel = team === 'A' ? panelA : panelB;
     panel.classList.add('cooling');
-    setTimeout(() => panel.classList.remove('cooling'), DEBOUNCE_MS);
+    setTimeout(() => panel.classList.remove('cooling'), 300);
 
     // 确保当前局存在
     const idx = state.currentGame - 1;
@@ -884,7 +881,6 @@
   function resumeFromPause() {
     if (state.status !== 'paused') return;
     state.status = 'playing';
-    lastScoreTime = 0; // 重置防抖
     updateAll();
     saveState();
     hideAllOverlays();
@@ -903,7 +899,6 @@
       const prevWinner = state.games[idx - 1].winner;
       state.server = prevWinner || 'A';
     }
-    lastScoreTime = 0;
     updateAll();
     saveState();
     hideAllOverlays();
@@ -922,7 +917,6 @@
       switchedSides: false
     };
     updateFormatBtns();
-    lastScoreTime = 0;
     updateAll();
     saveState();
     hideAllOverlays();
@@ -1030,8 +1024,8 @@
     });
   });
 
-  panelA.addEventListener('click', () => score('A'));
-  panelB.addEventListener('click', () => score('B'));
+  panelA.addEventListener('dblclick', (e) => { e.preventDefault(); score('A'); });
+  panelB.addEventListener('dblclick', (e) => { e.preventDefault(); score('B'); });
   btnUndo.addEventListener('click', undo);
   btnPause.addEventListener('click', togglePause);
   btnResume.addEventListener('click', resumeFromPause);
@@ -1109,15 +1103,6 @@
       }
     }
   });
-
-  // ===== 触摸振动反馈 =====
-  function vibrate() {
-    if (navigator.vibrate) {
-      navigator.vibrate(10);
-    }
-  }
-  panelA.addEventListener('pointerdown', vibrate);
-  panelB.addEventListener('pointerdown', vibrate);
 
   // ===== 初始化 =====
   function init() {
