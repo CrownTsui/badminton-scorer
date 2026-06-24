@@ -136,7 +136,7 @@
   }
   .overlay-content h2 { font-size: 2.2rem; font-weight: 600; margin-bottom: 12px; letter-spacing: -0.02em; }
   .overlay-content p { color: var(--color-text-secondary); margin-bottom: 20px; line-height: 1.5; font-size: 1.3rem; }
-  .overlay-content .btn { display: inline-flex; margin: 4px; font-size: 1.3rem; background: var(--color-bg); box-shadow: none; }
+  .overlay-content .btn { display: inline-flex; margin: 4px; font-size: 1.3rem; }
 
   .winner-highlight { font-size: 4rem; font-weight: 700; padding: 16px 24px; border-radius: 14px; margin: 12px 0; }
   .winner-highlight.win-a { background: var(--color-a-bg); color: var(--color-a); }
@@ -251,7 +251,7 @@
   <div class="overlay-content">
     <h2>⏸ 暂停中</h2>
     <p id="pauseScoreText">比分 0 - 0</p>
-    <button class="btn" id="btnResume" style="background:var(--color-accent);color:#0B0B1A;">
+    <button class="btn" id="btnResume" style="background:var(--color-a);color:#FFF;">
       ▶ 继续比赛
     </button>
   </div>
@@ -269,7 +269,7 @@
   <div class="overlay-content">
     <h2>🔄 交换场地</h2>
     <p>请双方交换场地后继续</p>
-    <button class="btn" id="btnSwitchDone" style="background:var(--color-accent);color:#0B0B1A;">
+    <button class="btn" id="btnSwitchDone" style="background:var(--color-a);color:#FFF;">
       ✓ 已换边，继续
     </button>
   </div>
@@ -755,7 +755,7 @@
       </div>
       <p style="color:var(--color-text-dim);">总局数: ${winsA} - ${winsB}</p>
       ${needSwitch ? '<p style="color:var(--color-a);font-weight:600;margin-top:8px;">请交换场地</p>' : ''}
-      <button class="btn" id="btnNextGame" style="background:var(--color-accent);color:#0B0B1A;">
+      <button class="btn" id="btnNextGame" style="background:var(--color-a);color:#FFF;">
         ▶ 开始第 ${state.currentGame + 1} 局
       </button>
     `;
@@ -781,7 +781,7 @@
         总局数: ${winsA} - ${winsB}<br>
         ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
       </div>
-      <button class="btn" id="btnNewMatch" style="background:var(--color-accent);color:#0B0B1A;margin-top:12px;">
+      <button class="btn" id="btnNewMatch" style="background:var(--color-a);color:#FFF;margin-top:12px;">
         🔄 新比赛
       </button>
     `;
