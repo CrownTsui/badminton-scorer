@@ -127,13 +127,24 @@
   .btn.danger { color: var(--color-a); }
 
   /* ===== 遮罩层 — Apple 毛玻璃 ===== */
-  .overlay { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .overlay.visible { display: flex; }
-  .overlay-bg { position: absolute; inset: 0; background: rgba(242,242,247,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+  .overlay {
+    display: flex; position: fixed; inset: 0; z-index: 100; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    visibility: hidden; opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
+  }
+  .overlay.visible { visibility: visible; opacity: 1; pointer-events: auto; transition: opacity 200ms ease; }
+  .overlay-bg {
+    position: absolute; inset: 0; background: rgba(242,242,247,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    opacity: 0; transition: opacity 200ms ease;
+  }
+  .overlay.visible .overlay-bg { opacity: 1; }
   .overlay-content {
     position: relative; z-index: 1; padding: 32px; max-width: 380px; width: 90%;
     background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    opacity: 0; transform: translateY(8px) scale(0.97);
+    transition: transform 200ms ease, opacity 200ms ease;
   }
+  .overlay.visible .overlay-content { opacity: 1; transform: none; }
   .overlay-content h2 { font-size: 2.2rem; font-weight: 600; margin-bottom: 12px; letter-spacing: -0.02em; }
   .overlay-content p { color: var(--color-text-secondary); margin-bottom: 20px; line-height: 1.5; font-size: 1.3rem; }
   .overlay-content .btn { display: inline-flex; margin: 4px; font-size: 1.3rem; }
@@ -154,16 +165,31 @@
   }
   .history-dot.team-a { background: var(--color-a); }
   .history-dot.team-b { background: var(--color-b); }
+  .history-dot.history-dot-new { transition: transform 150ms ease, opacity 150ms ease; }
+  @starting-style {
+    .history-dot.history-dot-new { opacity: 0; transform: scale(0.85); }
+  }
 
   /* ===== 确认框 — Apple 风 ===== */
-  .confirm-dialog { display: none; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center; }
-  .confirm-dialog.visible { display: flex; }
-  .confirm-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .confirm-dialog {
+    display: flex; position: fixed; inset: 0; z-index: 200; align-items: center; justify-content: center;
+    visibility: hidden; opacity: 0; pointer-events: none;
+    transition: opacity 200ms ease, visibility 0s linear 200ms;
+  }
+  .confirm-dialog.visible { visibility: visible; opacity: 1; pointer-events: auto; transition: opacity 200ms ease; }
+  .confirm-bg {
+    position: absolute; inset: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    opacity: 0; transition: opacity 200ms ease;
+  }
+  .confirm-dialog.visible .confirm-bg { opacity: 1; }
   .confirm-box {
     position: relative; z-index: 1; background: var(--color-surface);
     border-radius: var(--radius-lg); padding: 28px; box-shadow: var(--shadow-lg);
     max-width: 340px; width: 90%; text-align: center;
+    opacity: 0; transform: translateY(8px) scale(0.97);
+    transition: transform 200ms ease, opacity 200ms ease;
   }
+  .confirm-dialog.visible .confirm-box { opacity: 1; transform: none; }
   .confirm-box h3 { margin-bottom: 8px; font-size: 1.8rem; font-weight: 600; }
   .confirm-box p { color: var(--color-text-secondary); margin-bottom: 20px; font-size: 1.4rem; }
   .confirm-box .btn-group { display: flex; gap: 8px; justify-content: center; }
@@ -174,6 +200,13 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .overlay, .confirm-dialog { transition-duration: 120ms; }
+    .overlay-bg, .confirm-bg, .overlay-content, .confirm-box { transition-duration: 120ms; }
+    .overlay-content, .confirm-box { transform: none; }
+    .history-dot.history-dot-new { transition: opacity 100ms ease; transform: none; }
+  }
 </style>
 </head>
 <body>
@@ -366,6 +399,7 @@
     history: [],              // [{team, game, scoreA, scoreB, ts}]
     switchedSides: false      // 第三局是否已换边
   };
+  let pendingHistoryEntry = null;
 
   let storageAvailable = true;
 
@@ -506,7 +540,7 @@
 
     for (const h of show) {
       const dot = document.createElement('span');
-      dot.className = `history-dot ${h.team === 'A' ? 'team-a' : 'team-b'}`;
+      dot.className = `history-dot ${h.team === 'A' ? 'team-a' : 'team-b'}${h === pendingHistoryEntry ? ' history-dot-new' : ''}`;
       dot.textContent = h.team;
       historyStream.appendChild(dot);
     }
@@ -516,6 +550,7 @@
       more.textContent = `... +${currentGameHistory.length - 40}`;
       historyStream.appendChild(more);
     }
+    pendingHistoryEntry = null;
   }
 
   // ===== 计分逻辑 =====
@@ -568,7 +603,8 @@
     const s = game.scores;
 
     // 记录历史
-    state.history.push({ team, game: state.currentGame, scoreA: s.A, scoreB: s.B, ts: Date.now() });
+    pendingHistoryEntry = { team, game: state.currentGame, scoreA: s.A, scoreB: s.B, ts: Date.now() };
+    state.history.push(pendingHistoryEntry);
     state.server = team; // 得分方获得发球权
 
     // 检查比赛是否结束
