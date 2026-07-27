@@ -113,7 +113,11 @@
     color: var(--color-text); transition: transform 0.15s ease;
     font-size: 8rem; text-align: center;
   }
-  @media (orientation: landscape) { .score-number { font-size: 6rem; } }
+  @media (orientation: landscape) {
+    .score-area { flex-direction: row; }
+    .score-panel { min-width: 0; }
+    .score-number { font-size: 6rem; }
+  }
   .score-number { transform: rotate(var(--text-rotation)); }
   .score-number.pulse { transform: rotate(var(--text-rotation)) scale(1.25); }
 
