@@ -23,7 +23,11 @@
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
     --shadow: 0 4px 14px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.04);
     --shadow-lg: 0 8px 32px rgba(0,0,0,0.06);
+    --text-rotation: 0deg;
   }
+
+  html.text-rotate-cw { --text-rotation: 90deg; }
+  html.text-rotate-ccw { --text-rotation: -90deg; }
 
   html { height: 100%; font-size: 80%; }
   body {
@@ -46,6 +50,8 @@
   }
 
   /* ===== 头部 — Apple 风 ===== */
+  .rotatable-text { display: inline-block; transform: rotate(var(--text-rotation)); }
+
   .header { text-align: center; padding: 14px 8px 0; }
   .header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; color: var(--color-text-secondary); }
   .header .status-bar { font-size: 1.3rem; font-weight: 500; color: var(--color-text-secondary); margin-top: 4px; }
@@ -108,7 +114,8 @@
     font-size: 8rem; text-align: center;
   }
   @media (orientation: landscape) { .score-number { font-size: 6rem; } }
-  .score-number.pulse { transform: scale(1.25); }
+  .score-number { transform: rotate(var(--text-rotation)); }
+  .score-number.pulse { transform: rotate(var(--text-rotation)) scale(1.25); }
 
   .double-tap-hint { font-size: 1rem; color: var(--color-text-secondary); opacity: 0.4; text-align: center; line-height: 1.3; }
 
@@ -221,19 +228,19 @@
 
   <!-- 头部 -->
   <header class="header">
-    <h1>🏸 羽毛球记分</h1>
-    <div class="status-bar" id="statusBar" aria-live="polite">准备开始</div>
+    <h1 class="rotatable-text">🏸 羽毛球记分</h1>
+    <div class="status-bar rotatable-text" id="statusBar" aria-live="polite">准备开始</div>
     <div class="format-selector" id="formatSelector">
-      <button class="format-btn" data-format="21">21分制</button>
-      <button class="format-btn active" data-format="15">15分制</button>
-      <button class="format-btn" data-format="11">11分制</button>
+      <button class="format-btn" data-format="21"><span class="rotatable-text">21分制</span></button>
+      <button class="format-btn active" data-format="15"><span class="rotatable-text">15分制</span></button>
+      <button class="format-btn" data-format="11"><span class="rotatable-text">11分制</span></button>
     </div>
-    <div class="rules-hint">三局两胜 · 得分即发球</div>
+    <div class="rules-hint rotatable-text">三局两胜 · 得分即发球</div>
   </header>
 
   <!-- 存储警告 -->
   <div class="warning-banner" id="warningBanner" role="alert">
-    ⚠️ 浏览器不支持数据保存，刷新后比分将丢失
+    <span class="rotatable-text">⚠️ 浏览器不支持数据保存，刷新后比分将丢失</span>
   </div>
 
   <!-- 主计分区域 -->
@@ -241,34 +248,34 @@
     <!-- A队 -->
     <button class="score-panel team-a" id="panelA" aria-label="A 队得分，当前 0 比 0">
       <div class="team-info">
-        <span class="team-name">A 队</span>
-        <span class="serve-indicator">🏸 发球</span>
+        <span class="team-name rotatable-text">A 队</span>
+        <span class="serve-indicator"><span class="rotatable-text">🏸 发球</span></span>
       </div>
-      <span class="score-number" id="scoreA">0</span>
-      <span class="double-tap-hint">双击<br>计分</span>
+      <span class="score-number rotatable-text" id="scoreA">0</span>
+      <span class="double-tap-hint rotatable-text">双击<br>计分</span>
     </button>
 
     <!-- B队 -->
     <button class="score-panel team-b" id="panelB" aria-label="B 队得分，当前 0 比 0">
       <div class="team-info">
-        <span class="team-name">B 队</span>
-        <span class="serve-indicator">🏸 发球</span>
+        <span class="team-name rotatable-text">B 队</span>
+        <span class="serve-indicator"><span class="rotatable-text">🏸 发球</span></span>
       </div>
-      <span class="score-number" id="scoreB">0</span>
-      <span class="double-tap-hint">双击<br>计分</span>
+      <span class="score-number rotatable-text" id="scoreB">0</span>
+      <span class="double-tap-hint rotatable-text">双击<br>计分</span>
     </button>
   </main>
 
   <!-- 控制栏 -->
   <nav class="controls" aria-label="比赛控制">
     <button class="btn" id="btnUndo" aria-label="撤销上一步得分，快捷键 Ctrl+Z">
-      ↶ 撤销
+      <span class="rotatable-text">↶ 撤销</span>
     </button>
     <button class="btn" id="btnPause" aria-label="暂停比赛，快捷键 空格键">
-      ⏸ 暂停
+      <span class="rotatable-text">⏸ 暂停</span>
     </button>
     <button class="btn danger" id="btnReset" aria-label="重置比赛">
-      🔄 重置
+      <span class="rotatable-text">🔄 重置</span>
     </button>
   </nav>
 
@@ -283,10 +290,10 @@
 <div class="overlay" id="pauseOverlay" role="dialog" aria-label="比赛暂停中">
   <div class="overlay-bg"></div>
   <div class="overlay-content">
-    <h2>⏸ 暂停中</h2>
-    <p id="pauseScoreText">比分 0 - 0</p>
+    <h2 class="rotatable-text">⏸ 暂停中</h2>
+    <p class="rotatable-text" id="pauseScoreText">比分 0 - 0</p>
     <button class="btn" id="btnResume" style="background:var(--color-a);color:#FFF;">
-      ▶ 继续比赛
+      <span class="rotatable-text">▶ 继续比赛</span>
     </button>
   </div>
 </div>
@@ -301,10 +308,10 @@
 <div class="overlay" id="switchSidesOverlay" role="dialog" aria-label="交换场地">
   <div class="overlay-bg"></div>
   <div class="overlay-content">
-    <h2>🔄 交换场地</h2>
-    <p>请双方交换场地后继续</p>
+    <h2 class="rotatable-text">🔄 交换场地</h2>
+    <p class="rotatable-text">请双方交换场地后继续</p>
     <button class="btn" id="btnSwitchDone" style="background:var(--color-a);color:#FFF;">
-      ✓ 已换边，继续
+      <span class="rotatable-text">✓ 已换边，继续</span>
     </button>
   </div>
 </div>
@@ -313,13 +320,13 @@
 <div class="confirm-dialog" id="confirmReset" role="alertdialog" aria-label="确认重置比赛">
   <div class="confirm-bg"></div>
   <div class="confirm-box">
-    <h3>🔄 重置比赛？</h3>
-    <p>这将清除当前比赛的所有记录，此操作不可撤销。</p>
+    <h3 class="rotatable-text">🔄 重置比赛？</h3>
+    <p class="rotatable-text">这将清除当前比赛的所有记录，此操作不可撤销。</p>
     <div class="btn-group">
       <button class="btn" id="btnConfirmReset" style="background:var(--color-a);color:#FFF;">
-        确认重置
+        <span class="rotatable-text">确认重置</span>
       </button>
-      <button class="btn" id="btnCancelReset">取消</button>
+      <button class="btn" id="btnCancelReset"><span class="rotatable-text">取消</span></button>
     </div>
   </div>
 </div>
@@ -327,6 +334,7 @@
 <!-- 屏幕阅读器播报区 -->
 <div class="sr-only" aria-live="assertive" id="srAnnounce"></div>
 
+<script src="orientation.js"></script>
 <script>
 /* ===================================================================
  * 羽毛球记分器 — 核心逻辑
@@ -458,7 +466,7 @@
 
   // ===== UI 辅助 =====
   function showWarning(msg) {
-    warningBanner.textContent = msg;
+    warningBanner.querySelector('.rotatable-text').textContent = msg;
     warningBanner.classList.add('visible');
   }
   function hideWarning() {
@@ -521,7 +529,7 @@
     const canChangeFormat = state.status === 'before_match' || state.status === 'finished';
     btnUndo.disabled = !canUndo;
     btnPause.disabled = state.status !== 'playing' && state.status !== 'paused';
-    btnPause.textContent = state.status === 'paused' ? '▶ 继续' : '⏸ 暂停';
+    btnPause.querySelector('.rotatable-text').textContent = state.status === 'paused' ? '▶ 继续' : '⏸ 暂停';
     btnReset.disabled = state.status === 'loading';
     formatBtns.forEach(b => { b.disabled = !canChangeFormat; });
   }
@@ -529,7 +537,7 @@
   function renderHistory() {
     historyStream.innerHTML = '';
     if (state.history.length === 0) {
-      historyStream.innerHTML = '<span style="color:#9E9E9E;font-size:1.5rem;">暂无记录</span>';
+      historyStream.innerHTML = '<span class="rotatable-text" style="color:#9E9E9E;font-size:1.5rem;">暂无记录</span>';
       return;
     }
     // 只显示当前局的历史
@@ -541,13 +549,13 @@
     for (const h of show) {
       const dot = document.createElement('span');
       dot.className = `history-dot ${h.team === 'A' ? 'team-a' : 'team-b'}${h === pendingHistoryEntry ? ' history-dot-new' : ''}`;
-      dot.textContent = h.team;
+      dot.innerHTML = `<span class="rotatable-text">${h.team}</span>`;
       historyStream.appendChild(dot);
     }
     if (currentGameHistory.length > 40) {
       const more = document.createElement('span');
       more.style.cssText = 'font-size:1.4rem;color:#9E9E9E';
-      more.textContent = `... +${currentGameHistory.length - 40}`;
+      more.innerHTML = `<span class="rotatable-text">... +${currentGameHistory.length - 40}</span>`;
       historyStream.appendChild(more);
     }
     pendingHistoryEntry = null;
@@ -783,17 +791,17 @@
     const needSwitch = state.currentGame <= 2;
 
     resultContent.innerHTML = `
-      <h2>第 ${state.currentGame} 局结束</h2>
+      <h2 class="rotatable-text">第 ${state.currentGame} 局结束</h2>
       <div class="winner-highlight ${winner === 'A' ? 'win-a' : 'win-b'}">
-        ${winner} 队胜<br>(${s.A} - ${s.B})
+        <span class="rotatable-text">${winner} 队胜<br>(${s.A} - ${s.B})</span>
       </div>
-      <div class="game-summary">
+      <div class="game-summary rotatable-text">
         ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
       </div>
-      <p style="color:var(--color-text-secondary);">总局数: ${winsA} - ${winsB}</p>
-      ${needSwitch ? '<p style="color:var(--color-a);font-weight:600;margin-top:8px;">请交换场地</p>' : ''}
+      <p class="rotatable-text" style="color:var(--color-text-secondary);">总局数: ${winsA} - ${winsB}</p>
+      ${needSwitch ? '<p class="rotatable-text" style="color:var(--color-a);font-weight:600;margin-top:8px;">请交换场地</p>' : ''}
       <button class="btn" id="btnNextGame" style="background:var(--color-a);color:#FFF;">
-        ▶ 开始第 ${state.currentGame + 1} 局
+        <span class="rotatable-text">▶ 开始第 ${state.currentGame + 1} 局</span>
       </button>
     `;
     resultOverlay.classList.add('visible');
@@ -810,16 +818,16 @@
     const winsB = countGamesWon('B');
 
     resultContent.innerHTML = `
-      <h2>🏆 比赛结束</h2>
+      <h2 class="rotatable-text">🏆 比赛结束</h2>
       <div class="winner-highlight ${winner === 'A' ? 'win-a' : 'win-b'}">
-        ${winner} 队获胜!
+        <span class="rotatable-text">${winner} 队获胜!</span>
       </div>
-      <div class="game-summary">
+      <div class="game-summary rotatable-text">
         总局数: ${winsA} - ${winsB}<br>
         ${state.games.map((g, i) => `第${i + 1}局: ${g.scores.A}-${g.scores.B} ${g.winner ? g.winner + '队胜' : ''}`).join('<br>')}
       </div>
       <button class="btn" id="btnNewMatch" style="background:var(--color-a);color:#FFF;margin-top:12px;">
-        🔄 新比赛
+        <span class="rotatable-text">🔄 新比赛</span>
       </button>
     `;
     resultOverlay.classList.add('visible');
@@ -840,6 +848,15 @@
     updateStatusBar();
     updateButtonStates();
     renderHistory();
+  }
+
+  function syncLandscapeTextOrientation() {
+    const orientation = window.screen && window.screen.orientation;
+    const angle = orientation && typeof orientation.angle === 'number'
+      ? orientation.angle
+      : (typeof window.orientation === 'number' ? window.orientation : undefined);
+    const isLandscape = window.matchMedia && window.matchMedia('(orientation: landscape)').matches;
+    window.LandscapeTextOrientation.applyLandscapeTextOrientation(document.documentElement, angle, Boolean(isLandscape));
   }
 
   // ===== 事件绑定 =====
@@ -917,6 +934,12 @@
     }
   });
 
+  if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
+    window.screen.orientation.addEventListener('change', syncLandscapeTextOrientation);
+  }
+  window.addEventListener('orientationchange', syncLandscapeTextOrientation);
+  window.addEventListener('resize', syncLandscapeTextOrientation);
+
   // ===== 标签页切换恢复 =====
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && state.status === 'playing') {
@@ -975,6 +998,7 @@
 
     // 同步赛制按钮
     updateFormatBtns();
+    syncLandscapeTextOrientation();
 
     // 如果恢复后是暂停状态，显示暂停遮罩
     if (state.status === 'paused') {
