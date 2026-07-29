@@ -52,7 +52,7 @@
   .score-panel .team-name.rotatable-text,
   .score-panel .double-tap-hint.rotatable-text { transform: rotate(var(--panel-text-rotation)); }
   .score-panel.panel-labels-rotated .team-info { gap: 48px; }
-  .score-panel.panel-labels-rotated .serve-indicator { transform: rotate(-90deg); }
+  .score-panel.panel-labels-rotated .serve-indicator { transform: rotate(var(--panel-text-rotation)); }
 
   .header { text-align: center; padding: 14px 8px 0; }
   .header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; color: var(--color-text-secondary); }
@@ -290,8 +290,11 @@
     <button class="btn danger" id="btnReset" aria-label="重置比赛">
       <span class="rotatable-text">🔄 重置</span>
     </button>
-    <button class="btn" id="btnRotate" aria-label="逆时针旋转计分面板文字 90 度">
-      <span class="rotatable-text">↻ 旋转</span>
+    <button class="btn" id="btnRotateCW" aria-label="顺时针旋转计分面板文字 90 度">
+      <span class="rotatable-text">↻ 顺时针</span>
+    </button>
+    <button class="btn" id="btnRotateCCW" aria-label="逆时针旋转计分面板文字 90 度">
+      <span class="rotatable-text">↺ 逆时针</span>
     </button>
   </nav>
 
@@ -384,7 +387,8 @@
   const btnPause = $('#btnPause');
   const btnResume = $('#btnResume');
   const btnReset = $('#btnReset');
-  const btnRotate = $('#btnRotate');
+  const btnRotateCW = $('#btnRotateCW');
+  const btnRotateCCW = $('#btnRotateCCW');
   const pauseOverlay = $('#pauseOverlay');
   const pauseScoreText = $('#pauseScoreText');
   const resultOverlay = $('#resultOverlay');
@@ -553,14 +557,11 @@
     formatBtns.forEach(b => { b.disabled = !canChangeFormat; });
   }
 
-  function rotatePanelText() {
-    panelTextRotation = panelTextRotation === 0 ? -90 : 0;
+  function rotatePanelText(delta, direction) {
+    panelTextRotation = (panelTextRotation + delta + 360) % 360;
     document.documentElement.style.setProperty('--panel-text-rotation', `${panelTextRotation}deg`);
     scorePanels.forEach(panel => panel.classList.toggle('panel-labels-rotated', panelTextRotation !== 0));
-    const isRotated = panelTextRotation !== 0;
-    btnRotate.querySelector('.rotatable-text').textContent = isRotated ? '↺ 恢复' : '↻ 旋转';
-    btnRotate.setAttribute('aria-label', isRotated ? '恢复计分面板文字方向' : '逆时针旋转计分面板辅助文字 90 度');
-    announce(isRotated ? '计分面板辅助文字已逆时针旋转 90 度' : '计分面板文字方向已恢复');
+    announce(`计分面板文字已${direction}旋转 90 度`);
   }
 
   function renderHistory() {
@@ -925,7 +926,8 @@
   btnReset.addEventListener('click', () => {
     confirmReset.classList.add('visible');
   });
-  btnRotate.addEventListener('click', rotatePanelText);
+  btnRotateCW.addEventListener('click', () => rotatePanelText(90, '顺时针'));
+  btnRotateCCW.addEventListener('click', () => rotatePanelText(-90, '逆时针'));
   btnConfirmReset.addEventListener('click', resetMatch);
   btnCancelReset.addEventListener('click', () => {
     confirmReset.classList.remove('visible');
