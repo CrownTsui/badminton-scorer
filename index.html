@@ -23,11 +23,8 @@
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
     --shadow: 0 4px 14px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.04);
     --shadow-lg: 0 8px 32px rgba(0,0,0,0.06);
-    --text-rotation: 0deg;
+    --panel-text-rotation: 0deg;
   }
-
-  html.text-rotate-cw { --text-rotation: 90deg; }
-  html.text-rotate-ccw { --text-rotation: -90deg; }
 
   html { height: 100%; font-size: 80%; }
   body {
@@ -40,6 +37,7 @@
     user-select: none; -webkit-user-select: none;
     overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
+    font-optical-sizing: auto;
   }
 
   .app {
@@ -50,7 +48,11 @@
   }
 
   /* ===== 头部 — Apple 风 ===== */
-  .rotatable-text { display: inline-block; transform: rotate(var(--text-rotation)); }
+  .rotatable-text { display: inline-block; }
+  .score-panel .team-name.rotatable-text,
+  .score-panel .double-tap-hint.rotatable-text { transform: rotate(var(--panel-text-rotation)); }
+  .score-panel.panel-labels-rotated .team-info { gap: 48px; }
+  .score-panel.panel-labels-rotated .serve-indicator { transform: rotate(-90deg); }
 
   .header { text-align: center; padding: 14px 8px 0; }
   .header h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; color: var(--color-text-secondary); }
@@ -63,8 +65,9 @@
   .format-btn {
     padding: 5px 14px; border-radius: 8px; border: none; background: transparent;
     font-size: 1.15rem; font-weight: 500; cursor: pointer; color: var(--color-text);
-    transition: all 0.2s ease; min-height: 30px;
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 120ms ease-out; min-height: 30px;
   }
+  .format-btn:active { transform: scale(0.97); }
   .format-btn.active { background: #FFF; box-shadow: 0 1px 3px rgba(0,0,0,0.08); color: var(--color-a); font-weight: 700; }
   .format-btn:disabled { opacity: 0.35; pointer-events: none; }
 
@@ -118,19 +121,25 @@
     .score-panel { min-width: 0; }
     .score-number { font-size: 6rem; }
   }
-  .score-number { transform: rotate(var(--text-rotation)); }
-  .score-number.pulse { transform: rotate(var(--text-rotation)) scale(1.25); }
+  .score-number { transform: rotate(var(--panel-text-rotation)); }
+  .score-number.pulse { transform: rotate(var(--panel-text-rotation)) scale(1.25); }
 
   .double-tap-hint { font-size: 1rem; color: var(--color-text-secondary); opacity: 0.4; text-align: center; line-height: 1.3; }
 
   /* ===== 控制栏 — Apple 胶囊按钮 ===== */
-  .controls { display: flex; justify-content: center; gap: 8px; }
+  .controls {
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 4px;
+    border: 1px solid rgba(60,60,67,0.08); border-radius: 18px;
+    background: rgba(255,255,255,0.52); backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+  }
   .btn {
     padding: 10px 20px; border-radius: 100px; border: none;
     background: var(--color-surface);
     font-size: 1.4rem; font-weight: 500; cursor: pointer; color: var(--color-text);
     display: flex; align-items: center; gap: 4px;
-    transition: all 0.15s ease; min-height: 44px; justify-content: center;
+    transition: transform 120ms ease-out, box-shadow 150ms ease, background-color 150ms ease, color 150ms ease;
+    min-height: 44px; justify-content: center;
     box-shadow: var(--shadow-sm);
   }
   .btn:active { transform: scale(0.97); box-shadow: var(--shadow); }
@@ -281,6 +290,9 @@
     <button class="btn danger" id="btnReset" aria-label="重置比赛">
       <span class="rotatable-text">🔄 重置</span>
     </button>
+    <button class="btn" id="btnRotate" aria-label="逆时针旋转计分面板文字 90 度">
+      <span class="rotatable-text">↻ 旋转</span>
+    </button>
   </nav>
 
   <!-- 得分历史 -->
@@ -372,6 +384,7 @@
   const btnPause = $('#btnPause');
   const btnResume = $('#btnResume');
   const btnReset = $('#btnReset');
+  const btnRotate = $('#btnRotate');
   const pauseOverlay = $('#pauseOverlay');
   const pauseScoreText = $('#pauseScoreText');
   const resultOverlay = $('#resultOverlay');
@@ -385,6 +398,7 @@
   const historyStream = $('#historyStream');
   const loadingSpinner = $('#loadingSpinner');
   const formatBtns = document.querySelectorAll('.format-btn');
+  const scorePanels = document.querySelectorAll('.score-panel');
 
   // ===== 常量 =====
   const LS_KEY = 'badminton_scorer_v1';
@@ -412,6 +426,7 @@
     switchedSides: false      // 第三局是否已换边
   };
   let pendingHistoryEntry = null;
+  let panelTextRotation = 0;
 
   let storageAvailable = true;
 
@@ -536,6 +551,16 @@
     btnPause.querySelector('.rotatable-text').textContent = state.status === 'paused' ? '▶ 继续' : '⏸ 暂停';
     btnReset.disabled = state.status === 'loading';
     formatBtns.forEach(b => { b.disabled = !canChangeFormat; });
+  }
+
+  function rotatePanelText() {
+    panelTextRotation = panelTextRotation === 0 ? -90 : 0;
+    document.documentElement.style.setProperty('--panel-text-rotation', `${panelTextRotation}deg`);
+    scorePanels.forEach(panel => panel.classList.toggle('panel-labels-rotated', panelTextRotation !== 0));
+    const isRotated = panelTextRotation !== 0;
+    btnRotate.querySelector('.rotatable-text').textContent = isRotated ? '↺ 恢复' : '↻ 旋转';
+    btnRotate.setAttribute('aria-label', isRotated ? '恢复计分面板文字方向' : '逆时针旋转计分面板辅助文字 90 度');
+    announce(isRotated ? '计分面板辅助文字已逆时针旋转 90 度' : '计分面板文字方向已恢复');
   }
 
   function renderHistory() {
@@ -900,6 +925,7 @@
   btnReset.addEventListener('click', () => {
     confirmReset.classList.add('visible');
   });
+  btnRotate.addEventListener('click', rotatePanelText);
   btnConfirmReset.addEventListener('click', resetMatch);
   btnCancelReset.addEventListener('click', () => {
     confirmReset.classList.remove('visible');
