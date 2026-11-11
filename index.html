@@ -353,7 +353,6 @@
 <!-- 屏幕阅读器播报区 -->
 <div class="sr-only" aria-live="assertive" id="srAnnounce"></div>
 
-<script src="orientation.js"></script>
 <script>
 /* ===================================================================
  * 羽毛球记分器 — 核心逻辑
@@ -468,23 +467,21 @@
       // 基本校验
       if (!data || data.version !== 1) return null;
       const m = data.match;
-      if (!m || typeof m.currentGame !== 'number' || !Array.isArray(m.games) || !Array.isArray(m.history)) return null;
+      if (!m || !Number.isInteger(m.currentGame) || m.currentGame < 1 || m.currentGame > 3 || !Array.isArray(m.games) || !Array.isArray(m.history)) return null;
+      if (!Object.hasOwn(FORMAT_RULES, m.format) || !['A', 'B'].includes(m.server)) return null;
+      if (m.games.length > 3 || (m.status !== 'before_match' && m.games.length < m.currentGame)) return null;
+      if (m.history.some(h => !h || !['A', 'B'].includes(h.team) || !Number.isInteger(h.game) || h.game < 1 || h.game > m.currentGame)) return null;
       if (!['before_match','playing','paused','between_games','finished'].includes(m.status)) return null;
       // 校验比分范围
       for (const g of m.games) {
-        if (typeof g.scores.A !== 'number' || typeof g.scores.B !== 'number') return null;
+        if (!g || !g.scores || !Number.isInteger(g.scores.A) || !Number.isInteger(g.scores.B) || ![null, 'A', 'B'].includes(g.winner)) return null;
         if (g.scores.A < 0 || g.scores.A > 30 || g.scores.B < 0 || g.scores.B > 30) return null;
       }
       return data;
     } catch (e) {
       console.warn('LocalStorage 数据损坏，丢弃');
-      localStorage.removeItem(LS_KEY);
       return null;
     }
-  }
-
-  function clearStorage() {
-    try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ }
   }
 
   // ===== UI 辅助 =====
@@ -540,7 +537,7 @@
       case 'before_match': statusBar.textContent = `${state.format}分制 | 准备开始`; break;
       case 'playing': statusBar.textContent = `第 ${game} 局 | ${state.format}分制`; break;
       case 'paused': statusBar.textContent = `第 ${game} 局 | 暂停中`; break;
-      case 'between_games': statusBar.textContent = `第 ${game - 1} 局结束`; break;
+      case 'between_games': statusBar.textContent = `第 ${game} 局结束`; break;
       case 'finished': statusBar.textContent = '比赛结束'; break;
       default: statusBar.textContent = '加载中...';
     }
@@ -548,7 +545,7 @@
 
   function updateButtonStates() {
     const s = currentScores();
-    const canUndo = state.history.length > 0 && state.status === 'playing';
+    const canUndo = state.history.at(-1)?.game === state.currentGame && state.status === 'playing';
     const canChangeFormat = state.status === 'before_match' || state.status === 'finished';
     btnUndo.disabled = !canUndo;
     btnPause.disabled = state.status !== 'playing' && state.status !== 'paused';
@@ -558,11 +555,24 @@
   }
 
   function rotatePanelText(delta, direction) {
-    panelTextRotation = (panelTextRotation + delta + 360) % 360;
-    document.documentElement.style.setProperty('--panel-text-rotation', `${panelTextRotation}deg`);
-    scorePanels.forEach(panel => panel.classList.toggle('panel-labels-rotated', panelTextRotation !== 0));
+    setPanelTextRotation(panelTextRotation + delta);
     announce(`计分面板文字已${direction}旋转 90 度`);
   }
+
+  function setPanelTextRotation(angle) {
+    panelTextRotation = ((angle % 360) + 360) % 360;
+    document.documentElement.style.setProperty('--panel-text-rotation', `${panelTextRotation}deg`);
+    scorePanels.forEach(panel => panel.classList.toggle('panel-labels-rotated', panelTextRotation !== 0));
+  }
+
+  function syncScreenOrientation() {
+    const angle = window.screen.orientation?.angle ?? window.orientation;
+    if (typeof angle !== 'number' || !Number.isFinite(angle)) return;
+    setPanelTextRotation(angle === 90 || angle === -90 || angle === 270 ? angle : 0);
+  }
+
+  window.screen.orientation?.addEventListener('change', syncScreenOrientation);
+  window.addEventListener('orientationchange', syncScreenOrientation);
 
   function renderHistory() {
     historyStream.innerHTML = '';
@@ -572,14 +582,13 @@
     }
     // 只显示当前局的历史
     const currentGameHistory = state.history.filter(h => h.game === state.currentGame ||
-      (state.status === 'between_games' && h.game === state.currentGame - 1) ||
       (state.status === 'finished' && h.game <= state.currentGame));
     const show = currentGameHistory.slice(-40); // 最多显示最近40条
 
     for (const h of show) {
       const dot = document.createElement('span');
       dot.className = `history-dot ${h.team === 'A' ? 'team-a' : 'team-b'}${h === pendingHistoryEntry ? ' history-dot-new' : ''}`;
-      dot.innerHTML = `<span class="rotatable-text">${h.team}</span>`;
+      dot.textContent = h.team;
       historyStream.appendChild(dot);
     }
     if (currentGameHistory.length > 40) {
@@ -592,14 +601,6 @@
   }
 
   // ===== 计分逻辑 =====
-  function isGameOver(scoreAVal, scoreBVal) {
-    const { pointsToWin, maxPoints } = getRules();
-    if (scoreAVal >= maxPoints || scoreBVal >= maxPoints) return true;
-    if (scoreAVal >= pointsToWin && scoreAVal - scoreBVal >= 2) return true;
-    if (scoreBVal >= pointsToWin && scoreBVal - scoreAVal >= 2) return true;
-    return false;
-  }
-
   function getGameWinner(scoreAVal, scoreBVal) {
     const { pointsToWin, maxPoints } = getRules();
     if (scoreAVal >= maxPoints) return 'A';
@@ -639,6 +640,7 @@
     const game = state.games[idx];
     game.scores[team]++;
     const s = game.scores;
+    pulseScore(team === 'A' ? scoreA : scoreB);
 
     // 记录历史
     pendingHistoryEntry = { team, game: state.currentGame, scoreA: s.A, scoreB: s.B, ts: Date.now() };
@@ -687,7 +689,8 @@
     announce(`${team}队得分，${s.A} 比 ${s.B}`);
 
     // 边缘比分播报
-    if (s.A >= 20 && s.B >= 20 && s.A === s.B) {
+    const { pointsToWin } = getRules();
+    if (s.A >= pointsToWin - 1 && s.B >= pointsToWin - 1 && s.A === s.B) {
       announce(`平分! ${s.A} 比 ${s.B}`);
     }
   }
@@ -716,6 +719,8 @@
       const prev = state.history[state.history.length - 1];
       if (prev.game === state.currentGame) {
         state.server = prev.team;
+      } else {
+        state.server = state.games[state.currentGame - 2].winner || 'A';
       }
     } else {
       // 当前局无历史，A先发
@@ -880,15 +885,6 @@
     renderHistory();
   }
 
-  function syncLandscapeTextOrientation() {
-    const orientation = window.screen && window.screen.orientation;
-    const angle = orientation && typeof orientation.angle === 'number'
-      ? orientation.angle
-      : (typeof window.orientation === 'number' ? window.orientation : undefined);
-    const isLandscape = window.matchMedia && window.matchMedia('(orientation: landscape)').matches;
-    window.LandscapeTextOrientation.applyLandscapeTextOrientation(document.documentElement, angle, Boolean(isLandscape));
-  }
-
   // ===== 事件绑定 =====
   // 赛制切换（仅比赛前/结束后可切换）
   formatBtns.forEach(btn => {
@@ -939,6 +935,7 @@
 
   // ===== 键盘快捷键 =====
   document.addEventListener('keydown', (e) => {
+    if (confirmReset.classList.contains('visible') || e.repeat) return;
     // 在输入框中不处理
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
@@ -965,12 +962,6 @@
         break;
     }
   });
-
-  if (window.screen && window.screen.orientation && window.screen.orientation.addEventListener) {
-    window.screen.orientation.addEventListener('change', syncLandscapeTextOrientation);
-  }
-  window.addEventListener('orientationchange', syncLandscapeTextOrientation);
-  window.addEventListener('resize', syncLandscapeTextOrientation);
 
   // ===== 标签页切换恢复 =====
   document.addEventListener('visibilitychange', () => {
@@ -1030,14 +1021,13 @@
 
     // 同步赛制按钮
     updateFormatBtns();
-    syncLandscapeTextOrientation();
-
     // 如果恢复后是暂停状态，显示暂停遮罩
+    syncScreenOrientation();
     if (state.status === 'paused') {
       showPauseOverlay();
     }
     if (state.status === 'between_games') {
-      const idx = state.currentGame - 2;
+      const idx = state.currentGame - 1;
       const winner = idx >= 0 && idx < state.games.length ? state.games[idx].winner : 'A';
       showBetweenGamesOverlay(winner || 'A');
     }
